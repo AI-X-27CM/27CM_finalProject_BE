@@ -1,0 +1,15 @@
+pip install "uvicorn[standard]" - uvicorn-0.27.1
+pip install fastapi - fastapi-0.110.0
+pip install jiwer
+pip install transformers
+ffmpeg-6.1.1-full_build >>> 환경변수 설정해줘야 함 ffmpeg.exe -version  /  https://www.gyan.dev/ffmpeg/builds/#release-builds
+pip3 install openai
+pip install python-multipart
+pip install soundfile
+pip3 install torch torchvision torchaudio
+pip install pydub
+pip install sqlalchemy
+pip install alembic // alembic init migrations // 
+* migrations/env.py 파일 수정 import models         target_metadata = models.Base.metadata
+* alembic.ini 파일 수정 sqlalchemy.url = sqlite:///./DBname.db
+* 이후 터미널에서 alembic revision --autogenerate // alembic upgrade head

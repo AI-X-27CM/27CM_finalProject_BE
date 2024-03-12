@@ -1,23 +1,23 @@
-from fastapi import FastAPI, Depends, HTTPException
-from jinja2 import Environment, FileSystemLoader
+from fastapi import FastAPI, Depends, HTTPException, File, UploadFile, Form
+from typing import Optional
+import soundfile as sf
+import io
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.responses import RedirectResponse
 from sqlalchemy.orm import Session
+from typing import List
+from sqlalchemy import func
+from collections import defaultdict
+from datetime import datetime
 
 from database import Base, engine, SessionLocal
 from models import User, Detect, ALL
+import util
 
 
 
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
 
 app = FastAPI()
-templates = Environment(loader=FileSystemLoader("frontend"))
 
 
 app.add_middleware(
@@ -30,10 +30,75 @@ app.add_middleware(
 
 @app.get("/")
 async def root():
-    return RedirectResponse(url="http://localhost:3000")
+    return {"message": "Hello World"}
 
 
-# @app.post("/users/")
-# def create_user(user: User.ID, pwd:User.PWD, Phone:User.Phone, db: Session = Depends(get_db)):
-#     db.add(User(ID=user, PWD=pwd, Phone=Phone))
-#     pass
+#월별 데이터 가져오기
+@app.get("/getMonthlyData/")
+def get_monthly():
+    db = SessionLocal()
+    Date_data = db.query(Detect.Date).all()
+    db.close()
+
+    monthly_counts = defaultdict(int)
+    for row in Date_data:
+        date = row.Date  # Row 객체에서 Date 속성 추출
+        month = date.strftime("%Y-%m")  # 월별 형식으로 변환
+        monthly_counts[month] += 1
+
+    return monthly_counts
+
+
+#일별 데이터 가져오기
+@app.get("/getDailyData/")
+def get_daily():
+    db = SessionLocal()
+    Date_data = db.query(Detect.Date).all()
+    db.close()
+
+    daily_counts = defaultdict(int)
+    for row in Date_data:
+        date = row.Date  # Row 객체에서 Date 속성 추출
+        day = date.strftime("%Y-%m-%d")  # 일별 형식으로 변환
+        daily_counts[day] += 1
+
+    return daily_counts
+
+#피싱 종류별 데이터
+@app.get("/labelData/")
+def get_label():
+    db = SessionLocal()
+    Label_data = db.query(Detect.Label).all()
+    db.close()
+
+    label_counts = defaultdict(int)
+
+    for label in Label_data:
+        label_str = label[0]  # 라벨 데이터는 튜플로 반환되므로 첫 번째 요소를 가져옴
+        label_counts[label_str] += 1
+
+    return label_counts
+
+@app.get("/userData")
+def get_userdata():
+    db = SessionLocal()
+    user_data = db.query(User).all()
+    db.close()
+    return user_data
+
+
+@app.post("/STT")
+async def create_upload_file(file: UploadFile = File(...), additional_data: Optional[str] = Form(None)):
+    contents = await file.read()
+    wav_data = util.convert_to_wav(contents)
+    bytes_io = io.BytesIO(wav_data)
+    data, samplerate = sf.read(bytes_io, dtype='float32')
+    if data.ndim > 1:
+        data = data[:, 0]
+    sand_text = util.whisper(data)
+    return sand_text
+
+@app.post("/GPT")
+async def create_gpt_file(sand_text: str):
+    answer = await util.gpt(sand_text)
+    return answer

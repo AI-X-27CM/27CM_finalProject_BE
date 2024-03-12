@@ -1,12 +1,11 @@
-from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey
-
+from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Sequence
 from database import Base
 
 
 class User(Base):
     __tablename__ = "users"
 
-    User_pk = Column(Integer, primary_key=True, index=True)
+    User_pk = Column(Integer, Sequence('user_pk_seq'), primary_key=True, index=True)
     ID = Column(String, unique=True, index=True)
     PWD = Column(String, nullable=False)
     Phone = Column(String, nullable=False)
