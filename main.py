@@ -9,10 +9,12 @@ from typing import List
 from sqlalchemy import func
 from collections import defaultdict
 from datetime import datetime
+import json
 
 from database import Base, engine, SessionLocal
 from models import User, Detect, ALL
 import util
+
 
 
 
@@ -86,9 +88,16 @@ def get_userdata():
     db.close()
     return user_data
 
+@app.get("/phishingData")
+def get_pishingdata():
+    db = SessionLocal()
+    pishing_data = db.query(Detect).all()
+    db.close()
+    return pishing_data
+
 
 @app.post("/STT")
-async def create_upload_file(file: UploadFile = File(...), additional_data: Optional[str] = Form(None)):
+async def create_upload_file(file: UploadFile = File(...)):
     contents = await file.read()
     wav_data = util.convert_to_wav(contents)
     bytes_io = io.BytesIO(wav_data)
@@ -99,6 +108,20 @@ async def create_upload_file(file: UploadFile = File(...), additional_data: Opti
     return sand_text
 
 @app.post("/GPT")
-async def create_gpt_file(sand_text: str):
+async def create_gpt_answer(sand_text: str):
     answer = await util.gpt(sand_text)
     return answer
+
+@app.post("/requestUser")
+async def main_check(file: UploadFile = File(...), User_pk: int = Form(...)):
+    sand_text = await create_upload_file(file) # Front(APP)에서 입력받은 파일을 쌓는 로직이 필요함
+    answer = await create_gpt_answer(sand_text)
+    if answer["label"] == "해당없음":
+        return {"result": 0}
+    else:
+        Record = "url"
+        db = SessionLocal()
+        db.add(Detect(Date=datetime.now(), Record=Record, ID=User_pk, Label=answer["label"]))
+        db.commit()
+        db.close()
+        return {"result": 1}
