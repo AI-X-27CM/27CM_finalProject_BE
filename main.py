@@ -10,6 +10,8 @@ from sqlalchemy import func
 from collections import defaultdict
 from datetime import datetime
 import json
+import uuid
+import shutil
 
 from database import Base, engine, SessionLocal
 from models import User, Detect, ALL
@@ -107,21 +109,38 @@ async def create_upload_file(file: UploadFile = File(...)):
     sand_text = util.whisper(data)
     return sand_text
 
-@app.post("/GPT")
-async def create_gpt_answer(sand_text: str):
-    answer = await util.gpt(sand_text)
-    return answer
 
-@app.post("/requestUser")
-async def main_check(file: UploadFile = File(...), User_pk: int = Form(...)):
-    sand_text = await create_upload_file(file) # Front(APP)에서 입력받은 파일을 쌓는 로직이 필요함
-    answer = await create_gpt_answer(sand_text)
-    if answer["label"] == "해당없음":
-        return {"result": 0}
-    else:
-        Record = "url"
-        db = SessionLocal()
-        db.add(Detect(Date=datetime.now(), Record=Record, ID=User_pk, Label=answer["label"]))
-        db.commit()
-        db.close()
-        return {"result": 1}
+
+# app에서 파일 업로드를 위한 API
+@app.post("/api")
+async def upload_file(file: UploadFile = File(...)):
+    unique_filename = f"{uuid.uuid4()}-{file.filename}"
+    file_path = f"./uploads/{unique_filename}"
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+        print(f"dddddfile{file.filename}")
+    return {"filename": unique_filename}
+
+# util.gpt('str변수') > GPT 모델 사용하는 함수
+
+# 서버단에서 테스트를 위해서 작성했던 코드
+# @app.post("/GPT")
+# async def create_gpt_answer(sand_text: str):
+#     answer = await util.gpt(sand_text)
+#     return answer
+
+
+# request 에 따른 응답 페이지 로직 예시
+# @app.post("/requestUser")
+# async def main_check(file: UploadFile = File(...), User_pk: int = Form(...)):
+#     sand_text = await create_upload_file(file) # Front(APP)에서 입력받은 파일을 쌓는 로직이 필요함
+#     answer = await create_gpt_answer(sand_text)
+#     if answer["label"] == "해당없음":
+#         return {"result": 0}
+#     else:
+#         Record = "url"
+#         db = SessionLocal()
+#         db.add(Detect(Date=datetime.now(), Record=Record, ID=User_pk, Label=answer["label"]))
+#         db.commit()
+#         db.close()
+#         return {"result": 1}
