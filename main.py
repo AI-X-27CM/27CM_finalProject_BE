@@ -16,8 +16,8 @@ import shutil
 from database import Base, engine, SessionLocal
 from models import User, Detect, ALL
 import util
-
-
+import os
+from pydantic import BaseModel
 
 
 
@@ -31,6 +31,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+if not os.path.exists('uploads'):
+    os.makedirs('uploads')
+    
+
 
 @app.get("/")
 async def root():
@@ -118,8 +123,21 @@ async def upload_file(file: UploadFile = File(...)):
     file_path = f"./uploads/{unique_filename}"
     with open(file_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
-        print(f"dddddfile{file.filename}")
     return {"filename": unique_filename}
+
+
+class TestUser(BaseModel):
+    id: str
+    pwd: str
+    phone: int
+    date: datetime
+
+
+@app.post("/addUser")
+async def add_user(user:TestUser):
+    print(user)
+    return {"message": "User added successfully", "user": user}
+
 
 # util.gpt('str변수') > GPT 모델 사용하는 함수
 
