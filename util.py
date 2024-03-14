@@ -21,7 +21,7 @@ def whisper(wav):
     return result["text"]
 
 
-OPENAI_API_KEY = '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'
+OPENAI_API_KEY = 'your_api_key_here'
 
 async def gpt(query):
     client = OpenAI(api_key=OPENAI_API_KEY)

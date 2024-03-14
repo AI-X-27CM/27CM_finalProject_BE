@@ -1,7 +1,9 @@
 from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Sequence
 from database import Base
+from datetime import datetime
+from pydantic import BaseModel
 
-
+# DB 설계
 class User(Base):
     __tablename__ = "users"
 
@@ -26,3 +28,12 @@ class ALL(Base):
     ALL_pk = Column(Integer, primary_key=True, index=True)
     ALL_Cnt = Column(Integer, nullable=False)
     Detect_Cnt = Column(Integer, nullable=False)
+
+
+
+# pydantic을 이용한 데이터 검증 / Form 데이터 검증을 위해 사용
+class input_User(BaseModel):
+    id: str
+    pwd: str
+    phone: str
+    date: datetime
