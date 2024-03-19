@@ -23,7 +23,7 @@ from pydantic import BaseModel
 if not os.path.exists('uploads'):
     os.makedirs('uploads')
 
-print(util.whisper("start.wav"))
+
 
 app = FastAPI()
 
@@ -35,14 +35,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# whisper 모델 로드
 pipe = pipeline("automatic-speech-recognition", model="openai/whisper-large-v3", device="cuda")
+print(util.whisper("start.wav"))
+
 # 전역 변수 초기화
 global_service_on = 0
-global_text_list = [] # 로직처리를 바꾸는게 좋다. // STT / GPT 쪼개라는 이유도 같음 // API 기능과 Backend 기능을 분리하는게 좋음 // 보고 판단
 
-# 보통 API는 모델 하나에 하나의 엔드포인트를 가지는게 좋음 / 하나의 엔드포인트에 여러 모델을 넣는건 좋지 않음
-# 쌓이는 것에 대한 로직을 APP에서 사용자 프라이머리 키를 이용해서 리스트에 저장하는 로직 만들어 볼 것
-# 순서 1. API 쪼개기 / 2. backend list 쌓는 로직 / 3. backend list 지우는 로직 및 트리거
 # https://www.uvicorn.org/settings/ 참조
 
 @app.get("/")
@@ -52,17 +51,15 @@ async def root():
 # 전화가 시작되었을 때, 아래 포인트에 get 요청을 보냄.
 @app.get("/start")
 async def start():
-    global global_service_on, global_text_list
+    global global_service_on
     global_service_on = 1
-    global_text_list = []
     return {"message": "call start"}
 
 # 전화가 끝났을 때, 아래 엔드 포인트에 get 요청을 보냄
 @app.get("/end")
 async def end():
-    global global_service_on, global_text_list
+    global global_service_on
     global_service_on = 0
-    global_text_list = []
     # 데이터베이스에 정보를 저장하는 로직을 추가
     return {"message": "call end"}
 
