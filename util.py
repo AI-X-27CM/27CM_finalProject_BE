@@ -2,6 +2,9 @@ import io
 from pydub import AudioSegment
 from transformers import pipeline
 from openai import OpenAI
+import torch
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 
@@ -14,14 +17,15 @@ def convert_to_wav(contents):
     wav_data = byte_buffer.getvalue()
     return wav_data
 
-
-def whisper(wav):
-    pipe = pipeline("automatic-speech-recognition", model="openai/whisper-large-v3")
+# 1. default 값이 무엇인지 모름 >>> 검색하여 확인해보기
+def whisper(wav, pipe):
+    # pipe = pipeline("automatic-speech-recognition", model="openai/whisper-large-v3", device=0 if torch.cuda.is_available() else -1)
+    print("device: ", torch.cuda.is_available())
     result = pipe(wav)
     return result["text"]
 
 
-OPENAI_API_KEY = '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'
+OPENAI_API_KEY = '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'
 
 async def gpt(query):
     client = OpenAI(api_key=OPENAI_API_KEY)
