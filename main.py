@@ -1,4 +1,4 @@
-from fastapi import FastAPI, File, UploadFile
+from fastapi import FastAPI, File, UploadFile, Depends, HTTPException
 from typing import Optional
 import soundfile as sf
 import io
@@ -12,9 +12,10 @@ import json
 import uuid
 import shutil
 from transformers import pipeline
+import torch
 
 from database import Base, engine, SessionLocal
-from models import User, Detect, ALL, input_User
+from models import User, Detect, ALL, input_User, error
 import util
 
 import os
@@ -36,8 +37,15 @@ app.add_middleware(
 )
 
 # whisper 모델 로드
-pipe = pipeline("automatic-speech-recognition", model="openai/whisper-large-v3", device="cuda")
-print(util.whisper("start.wav"))
+pipe = pipeline("automatic-speech-recognition", model="openai/whisper-large-v3", device="cuda" if torch.cuda.is_available() else "cpu")
+print(util.whisper("start.wav", pipe))
+
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
 # 전역 변수 초기화
 global_service_on = 0
@@ -165,3 +173,26 @@ async def add_user(user:input_User):
     db.close()
     return {"message": "User added successfully", "user": user}
 
+
+@app.delete("/phishingData/{Detect_pk}")
+def delete_phishing_data(Detect_pk: int, db: Session = Depends(get_db)):
+    item_to_delete = db.query(Detect).filter(Detect.Detect_pk == Detect_pk).first()
+    if item_to_delete:
+        db.delete(item_to_delete)
+        db.commit()
+        return {"message": "삭제되었습니다"}
+    else:
+        raise HTTPException(status_code=404, detail="Item not found")
+
+
+
+@app.get("/errorData")
+async def get_error_data(db: Session = Depends(get_db)):
+    error_data = db.query(error).all()
+    formatted_data = {}
+    for item in error_data:
+        error_time = item.Date.strftime('%H시')
+        if error_time not in formatted_data:
+            formatted_data[error_time] = {}
+        formatted_data[error_time][item.error] = formatted_data[error_time].get(item.error, 0) + 1
+    return formatted_data
