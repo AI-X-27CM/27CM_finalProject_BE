@@ -29,6 +29,13 @@ class ALL(Base):
     ALL_Cnt = Column(Integer, nullable=False)
     Detect_Cnt = Column(Integer, nullable=False)
 
+class error(Base):
+    __tablename__ = "error"
+
+    error_pk = Column(Integer, primary_key=True, index=True)
+    error = Column(String, nullable=False)
+    Date = Column(DateTime, nullable=False)
+
 
 
 # pydantic을 이용한 데이터 검증 / Form 데이터 검증을 위해 사용

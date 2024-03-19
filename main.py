@@ -1,4 +1,4 @@
-from fastapi import FastAPI, File, UploadFile
+from fastapi import FastAPI, File, UploadFile, Depends, HTTPException
 from typing import Optional
 import soundfile as sf
 import io
@@ -11,9 +11,11 @@ from collections import defaultdict
 import json
 import uuid
 import shutil
+from transformers import pipeline
+import torch
 
 from database import Base, engine, SessionLocal
-from models import User, Detect, ALL, input_User
+from models import User, Detect, ALL, input_User, error
 import util
 
 import os
@@ -23,8 +25,8 @@ if not os.path.exists('uploads'):
     os.makedirs('uploads')
 
 
-app = FastAPI()
 
+app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
@@ -34,9 +36,21 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# whisper 모델 로드
+pipe = pipeline("automatic-speech-recognition", model="openai/whisper-large-v3", device="cuda" if torch.cuda.is_available() else "cpu")
+print(util.whisper("start.wav", pipe))
+
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
 # 전역 변수 초기화
 global_service_on = 0
-global_text_list = []
+
+# https://www.uvicorn.org/settings/ 참조
 
 @app.get("/")
 async def root():
@@ -45,17 +59,15 @@ async def root():
 # 전화가 시작되었을 때, 아래 포인트에 get 요청을 보냄.
 @app.get("/start")
 async def start():
-    global global_service_on, global_text_list
+    global global_service_on
     global_service_on = 1
-    global_text_list = []
     return {"message": "call start"}
 
 # 전화가 끝났을 때, 아래 엔드 포인트에 get 요청을 보냄
 @app.get("/end")
 async def end():
-    global global_service_on, global_text_list
+    global global_service_on
     global_service_on = 0
-    global_text_list = []
     # 데이터베이스에 정보를 저장하는 로직을 추가
     return {"message": "call end"}
 
@@ -123,39 +135,34 @@ def get_pishingdata():
 # app에서 파일 업로드를 위한 API
 @app.post("/api")
 async def upload_file(file: UploadFile = File(...)):
-    global global_service_on, global_text_list
-    global_service_on = 1 # api 테스트를 위해 활성화 필요
-    if global_service_on == 0:
-        return {"message": "not on call"}
+    unique_filename = f"{uuid.uuid4()}-{file.filename}"
+    file_path = f"./uploads/{unique_filename}"
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+    return {"file_path": file_path}
+
+# gpt api 텍스트 데이터를 전달 받아서 {label, gpt판단결과} 로 반환
+@app.post("/gpt")
+async def gpt(query: str):
+    answer = await util.gpt(query)
+    answer = json.loads(answer)
+    if answer["label"] == "해당없음":
+        gpt_opinion = 0
     else:
-        contents = await file.read()
-        unique_filename = f"{uuid.uuid4()}-{file.filename}"
-        file_path = f"./uploads/{unique_filename}"
-        with open(file_path, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
-            print(f"dddddfile{file.filename}")
+        gpt_opinion = 1
+    return {"label": answer["label"], "gpt_opinion": gpt_opinion}
 
-        wav_data = util.convert_to_wav(contents)
-        bytes_io = io.BytesIO(wav_data)
-        data, samplerate = sf.read(bytes_io, dtype='float32')
-        if data.ndim > 1:
-            data = data[:, 0]
-        sand_text = util.whisper(data)
-        global_text_list.append(sand_text)
-        
-        GPT_request = " ".join(global_text_list)
-        
-        answer = await util.gpt(GPT_request) # GPT 요청
-
-        print(answer)
-        answer = json.loads(answer)
-        
-        if answer["label"] == "해당없음":
-            bool_label = 0
-        else:
-            bool_label = 1
-
-    return {"label": answer["label"], "bool_label": bool_label}
+# stt api 음성데이터를 전달 받아서 text로 반환
+@app.post("/stt")
+async def stt(file: UploadFile = File(...)):
+    contents = await file.read()
+    wav_data = util.convert_to_wav(contents)
+    bytes_io = io.BytesIO(wav_data)
+    data, samplerate = sf.read(bytes_io, dtype='float32')
+    if data.ndim > 1:
+        data = data[:, 0]
+    query = util.whisper(data, pipe)
+    return {"text": query}
 
 # 회원가입 유저 정보 DB 저장
 @app.post("/addUser")
@@ -166,3 +173,26 @@ async def add_user(user:input_User):
     db.close()
     return {"message": "User added successfully", "user": user}
 
+
+@app.delete("/phishingData/{Detect_pk}")
+def delete_phishing_data(Detect_pk: int, db: Session = Depends(get_db)):
+    item_to_delete = db.query(Detect).filter(Detect.Detect_pk == Detect_pk).first()
+    if item_to_delete:
+        db.delete(item_to_delete)
+        db.commit()
+        return {"message": "삭제되었습니다"}
+    else:
+        raise HTTPException(status_code=404, detail="Item not found")
+
+
+
+@app.get("/errorData")
+async def get_error_data(db: Session = Depends(get_db)):
+    error_data = db.query(error).all()
+    formatted_data = {}
+    for item in error_data:
+        error_time = item.Date.strftime('%H시')
+        if error_time not in formatted_data:
+            formatted_data[error_time] = {}
+        formatted_data[error_time][item.error] = formatted_data[error_time].get(item.error, 0) + 1
+    return formatted_data
