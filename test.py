@@ -10,7 +10,7 @@ import json
 
 app = FastAPI()
 
-pipe = pipeline("automatic-speech-recognition", model="openai/whisper-large-v3", device="cpu")
+pipe = pipeline("automatic-speech-recognition", model="openai/whisper-large-v3", device="cuda", generate_kwargs = {"language":"korean"})
 
 @app.post("/stt")
 async def stt(file: UploadFile = File(...)):
