@@ -1,29 +1,8 @@
 # 27CM_finalProject_BE
 
 
-pip install fastapi
+pip_list.txt에 설치한 패키지 있습니다.
 
-pip install sqlalchemy
-
-pip insatll jinja2
-
-pip install "uvicorn[standard]"
-
-pip3 install torch torchvision torchaudio
-
-pip install soundfile
-
-pip install python-multipart
-
-pip install pydub
-
-pip install alembic
-
-pip3 install openai
-
-pip install transformers
-
-pip install jiwer
 
 ffmpeg 환경변수 설정 필요합니다.
 
