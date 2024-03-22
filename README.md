@@ -25,8 +25,6 @@ pip install transformers
 
 pip install jiwer
 
-pip install tensorflow
-
 ffmpeg 환경변수 설정 필요합니다.
 
 DB에 더미데이터 저장되어 있습니다.

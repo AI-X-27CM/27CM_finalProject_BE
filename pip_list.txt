@@ -10,6 +10,10 @@ pip3 install torch torchvision torchaudio
 pip install pydub
 pip install sqlalchemy
 pip install tensorflow
+pip install librosa
+pip install tf-keras
+
+
 pip install alembic // alembic init migrations // 
 * migrations/env.py 파일 수정 import models         target_metadata = models.Base.metadata
 * alembic.ini 파일 수정 sqlalchemy.url = sqlite:///./DBname.db
