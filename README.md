@@ -30,4 +30,4 @@ ADMIN <-> SERVER		*
 
 * /api  > 음성데이터를 입력 받아서 합성음성감지 모델과 Whisper 모델 전달 > 결과 반환
 
-* GPT > 입력받은 STR 타입의 Text를 프롬프트 문에 전달하여 GPT 요청
+* /gpt > 입력받은 STR 타입의 Text를 프롬프트 문에 전달하여 GPT 요청
